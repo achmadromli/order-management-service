@@ -1,6 +1,5 @@
 package app
 
-// Order adalah model data untuk pesanan
 type Order struct {
 	ID         int
 	CustomerID int

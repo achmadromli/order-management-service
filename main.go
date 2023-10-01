@@ -1,37 +1,44 @@
 package main
 
 import (
-	"fmt"
+	"context"
+	"database/sql"
 	"log"
+	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	"double-dose/order-management/config"
 	"double-dose/order-management/internal/app"
-	"double-dose/order-management/internal/delivery/http"
+	orderHttp "double-dose/order-management/internal/delivery/http"
 	"double-dose/order-management/internal/repository/postgres"
 )
 
 func main() {
-	// Membaca konfigurasi aplikasi
 	cfg := config.LoadConfig()
 
-	// Membuat instance OrderRepository (implementasinya dapat berbeda, seperti PostgreSQL atau MySQL)
-	orderRepo := postgres.NewPostgreSQLRepository()
+	var db *sql.DB
 
-	// Membuat instance OrderService
+	orderRepo := postgres.NewPostgreSQLRepository(db)
 	orderService := app.NewOrderService(orderRepo)
+	orderHandler := orderHttp.NewOrderHandler(orderService)
 
-	// Membuat router HTTP
-	router := http.NewRouter(orderService)
+	http.HandleFunc("/", orderHandler.CreateOrderHandler)
+	http.HandleFunc("/:order_id", orderHandler.GetOrderHandler)
 
-	// Mengatur server HTTP
-	server := &http.Server{
-		Addr:    fmt.Sprintf(":%s", cfg.Server.Port),
-		Handler: router,
-	}
+	go func() {
+		log.Printf("Server started on port %s...", cfg.Server.Port)
+		if err := http.ListenAndServe(":"+cfg.Server.Port, nil); err != nil {
+			log.Fatal(err)
+		}
+	}()
 
-	// Menjalankan server
-	log.Printf("Server started on port %s...", cfg.Server.Port)
-	if err := server.ListenAndServe(); err != nil {
-		log.Fatal(err)
-	}
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
+	<-quit
+
+	_, shutdown := context.WithTimeout(context.Background(), 5*time.Second)
+	defer shutdown()
 }

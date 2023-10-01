@@ -4,18 +4,17 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"time"
 
 	"github.com/hashicorp/vault/api"
 )
 
-// AppConfig adalah struktur untuk menyimpan konfigurasi aplikasi
 type AppConfig struct {
 	Database DatabaseConfig
 	Server   ServerConfig
 	Vault    VaultConfig
 }
 
-// DatabaseConfig adalah konfigurasi database
 type DatabaseConfig struct {
 	Driver   string
 	Host     string
@@ -25,19 +24,18 @@ type DatabaseConfig struct {
 	Name     string
 }
 
-// ServerConfig adalah konfigurasi server HTTP
 type ServerConfig struct {
-	Port string
+	Port         string
+	ReadTimeout  time.Duration
+	WriteTimeout time.Duration
 }
 
-// VaultConfig adalah konfigurasi HashiCorp Vault
 type VaultConfig struct {
 	Address     string
 	Token       string
-	SecretsPath string // Path di Vault tempat menyimpan secrets
+	SecretsPath string
 }
 
-// LoadConfig membaca konfigurasi dari HashiCorp Vault
 func LoadConfig() *AppConfig {
 	vaultAddr := os.Getenv("VAULT_ADDR")
 	vaultToken := os.Getenv("VAULT_TOKEN")
@@ -54,7 +52,6 @@ func LoadConfig() *AppConfig {
 		log.Fatalf("Failed to create Vault client: %v", err)
 	}
 
-	// Baca konfigurasi dari Vault
 	secret, err := client.Logical().Read(secretsPath)
 	if err != nil {
 		log.Fatalf("Failed to read configuration from Vault: %v", err)
@@ -65,7 +62,7 @@ func LoadConfig() *AppConfig {
 	}
 
 	var dbConfig DatabaseConfig
-	dbConfig.Driver = "postgres" // Ganti dengan driver database yang sesuai (mysql, postgres, dll)
+	dbConfig.Driver = "postgres"
 	dbConfig.Host = secret.Data["db_host"].(string)
 	dbConfig.Port = secret.Data["db_port"].(string)
 	dbConfig.Username = secret.Data["db_username"].(string)
@@ -82,7 +79,6 @@ func LoadConfig() *AppConfig {
 	}
 }
 
-// GetDatabaseDSN mengembalikan Data Source Name (DSN) untuk koneksi database
 func (c *DatabaseConfig) GetDatabaseDSN() string {
 	return fmt.Sprintf("%s:%s@tcp(%s:%s)/%s", c.Username, c.Password, c.Host, c.Port, c.Name)
 }

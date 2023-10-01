@@ -1,6 +1,5 @@
 package app
 
-// OrderRepository adalah antarmuka repository untuk pesanan
 type OrderRepository interface {
 	CreateOrder(order *Order) (*Order, error)
 	GetOrderByID(orderID int) (*Order, error)
